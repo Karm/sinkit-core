@@ -8,7 +8,6 @@ import biz.karms.sinkit.ejb.dto.AllDNSSettingDTO;
 import biz.karms.sinkit.ejb.dto.CustomerCustomListDTO;
 import biz.karms.sinkit.ejb.dto.FeedSettingCreateDTO;
 import biz.karms.sinkit.eventlog.EventLogRecord;
-import biz.karms.sinkit.eventlog.MatchedIoC;
 import biz.karms.sinkit.exception.ArchiveException;
 import biz.karms.sinkit.exception.IoCValidationException;
 import biz.karms.sinkit.ioc.IoCRecord;
@@ -203,7 +202,8 @@ public class SinkitService implements Serializable {
     void addEventLogRecord(final String json) throws ArchiveException {
         EventLogRecord logRec = new GsonBuilder().create().fromJson(json, EventLogRecord.class);
         Set<String> ids = new HashSet<>();
-        for (MatchedIoC ioc : logRec.getMatchedIocs()) {
+        for (IoCRecord ioc : logRec.getMatchedIocs()) {
+            System.err.println(ioc.getDocumentId());
             ids.add(ioc.getDocumentId());
         }
         dnsApi.logDNSEvent(
