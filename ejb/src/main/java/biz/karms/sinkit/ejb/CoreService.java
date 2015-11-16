@@ -4,14 +4,16 @@ import biz.karms.sinkit.exception.ArchiveException;
 import biz.karms.sinkit.exception.IoCValidationException;
 import biz.karms.sinkit.ioc.IoCRecord;
 
-import javax.ejb.Remote;
+import javax.ejb.Local;
 
 /**
  * @author Michal Karm Babacek
  */
-@Remote
+@Local
 public interface CoreService {
     IoCRecord processIoCRecord(IoCRecord receivedIoc) throws ArchiveException, IoCValidationException;
+
+    int getIocActiveHours();
 
     int deactivateIocs() throws ArchiveException;
 

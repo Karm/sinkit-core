@@ -5,18 +5,12 @@ import biz.karms.sinkit.ejb.elastic.Indexable;
 import biz.karms.sinkit.exception.ArchiveException;
 import io.searchbox.client.JestClient;
 import io.searchbox.client.JestResult;
-import io.searchbox.core.Get;
-import io.searchbox.core.Index;
-import io.searchbox.core.Search;
-import io.searchbox.core.SearchResult;
-import io.searchbox.indices.CreateIndex;
+import io.searchbox.core.*;
 import io.searchbox.params.Parameters;
 
 import javax.annotation.PostConstruct;
-import javax.ejb.Singleton;
 import javax.ejb.Stateless;
 import javax.inject.Inject;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -194,5 +188,81 @@ public class ElasticServiceEJB implements ElasticService {
             throw new ArchiveException(result.getErrorMessage());
         }
         return document;
+    }
+
+    /**
+     * Stores object that implements Indexable interface
+     *
+     * @param documentId object being stored
+     * @param index    Document index
+     * @param type     Document type
+     * //@param <T>      Class of object being stored
+     * @return indexed object
+     * @throws ArchiveException when communication with Elastic Search server went wrong
+     */
+    @Override
+    public boolean update(String documentId, String script, String index, String type) throws ArchiveException {
+
+        Update updateRequest = new Update.Builder(script)
+                .index(index)
+                .type(type)
+                .id(documentId)
+                .setParameter(Parameters.REFRESH, true)         // immediate refresh
+                .setParameter(Parameters.RETRY_ON_CONFLICT, 5)  // 5 tries in case of conflict
+                .build();
+
+        JestResult result;
+        try {
+            result = elasticClient.execute(updateRequest);
+        } catch (Exception e) {
+            String message;
+            if (e.getCause() != null) {
+                message = e.getCause().getMessage();
+            } else {
+                message = e.getMessage();
+            }
+            throw new ArchiveException("Elastic upsert went wrong: " + message, e);
+        }
+
+        if (result.isSucceeded()) {
+            String docId = result.getJsonObject().getAsJsonPrimitive("_id").getAsString();
+            log.info("Indexed docId [" + docId + "]");
+        } else {
+            log.severe("Archive returned error: " + result.getErrorMessage());
+            throw new ArchiveException(result.getErrorMessage());
+        }
+        return result.isSucceeded();
+    }
+
+    @Override
+    public <T extends Indexable> boolean delete(T document, String index, String type) throws ArchiveException {
+
+        JestResult result;
+        try {
+            result = elasticClient.execute(new Delete.Builder(document.getDocumentId())
+                    .index(index)
+                    .type(type)
+                    .setParameter(Parameters.REFRESH, true)         // immediate refresh
+                    .build());
+        } catch (Exception e) {
+
+            String message;
+            if (e.getCause() != null) {
+                message = e.getCause().getMessage();
+            } else {
+                message = e.getMessage();
+            }
+            throw new ArchiveException("Elastic delete went wrong: " + message, e);
+        }
+
+        if (result.isSucceeded()) {
+            String docId = result.getJsonObject().getAsJsonPrimitive("_id").getAsString();
+            log.info("Deleted docId [" + docId + "]");
+        } else {
+            log.severe("Archive returned error: " + result.getErrorMessage());
+            throw new ArchiveException(result.getErrorMessage());
+        }
+
+        return result.isSucceeded();
     }
 }
