@@ -6,13 +6,14 @@ import biz.karms.sinkit.resolver.ResolverConfiguration;
 import biz.karms.sinkit.resolver.Strategy;
 import biz.karms.sinkit.resolver.StrategyParams;
 import biz.karms.sinkit.resolver.StrategyType;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 
 import static java.lang.String.format;
 
@@ -240,8 +241,9 @@ public class ResolverConfigurationValidatorTest {
     @Test
     public void testAccuracyStrategyTypeParamsSetttings() throws ResolverConfigurationValidationException {
         expectedException.expect(ResolverConfigurationValidationException.class);
-        expectedException.expectMessage( "'Audit' parameter value in 'Resolver configuration.policy.strategy params' settings "
-                + "must be bigger than 'Resolver configuration.policy.strategy.strategy params.block'.");
+        expectedException.expectMessage("'Audit' parameter value in 'Resolver configuration.policy.strategy params' settings " +
+                "must not be bigger than 'Resolver configuration.policy.strategy.strategy params.block' but " +
+                "for the special case where either 'Audit' or 'Block' are 0. None of the parameters can be outside <0, 100>.");
 
         final Policy policy = new Policy();
         final Strategy strategy = new Strategy();

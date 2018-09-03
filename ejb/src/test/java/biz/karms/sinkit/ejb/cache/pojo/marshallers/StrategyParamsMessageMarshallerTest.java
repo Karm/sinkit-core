@@ -93,6 +93,7 @@ public class StrategyParamsMessageMarshallerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void writeToParamsNull() throws Exception {
         // preparation
         final StrategyParams strategyParams = Mockito.mock(StrategyParams.class);

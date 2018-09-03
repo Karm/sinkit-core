@@ -117,7 +117,7 @@ public class FullHashLookupResponseReaderTest {
         rawResponse = ArrayUtils.addAll(rawResponse, metadata2);
 
 
-        System.out.println(new String(rawResponse));
+        // System.out.println(new String(rawResponse));
         InputStream is = new ByteArrayInputStream(rawResponse);
         FullHashLookupResponse response = reader.readFrom(FullHashLookupResponse.class, null, null, MediaType.APPLICATION_OCTET_STREAM_TYPE, null, is);
         assertNotNull("Expected response not to be null.", response);

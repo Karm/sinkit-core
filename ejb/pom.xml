@@ -54,13 +54,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- SubnetUtils -->
-        <!--<dependency>
-            <groupId>commons-net</groupId>
-            <artifactId>commons-net</artifactId>
-            <version>3.3</version>
-        </dependency>-->
-
         <dependency>
             <groupId>commons-validator</groupId>
             <artifactId>commons-validator</artifactId>
