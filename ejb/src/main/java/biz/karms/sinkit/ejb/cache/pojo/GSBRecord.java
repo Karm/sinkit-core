@@ -1,5 +1,8 @@
 package biz.karms.sinkit.ejb.cache.pojo;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.Serializable;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -8,6 +11,8 @@ import java.util.HashSet;
 /**
  * @author Tomas Kozel
  */
+@Getter
+@Setter
 public class GSBRecord implements Serializable {
 
     private static final long serialVersionUID = -8345339432357942885L;
@@ -39,29 +44,5 @@ public class GSBRecord implements Serializable {
         GSBRecord that = (GSBRecord) o;
 
         return this.hashPrefix.equals(that.hashPrefix);
-    }
-
-    public String getHashPrefix() {
-        return hashPrefix;
-    }
-
-    public void setHashPrefix(String hashPrefix) {
-        this.hashPrefix = hashPrefix;
-    }
-
-    public Calendar getFullHashesExpireAt() {
-        return fullHashesExpireAt;
-    }
-
-    public void setFullHashesExpireAt(Calendar fullHashesExpireAt) {
-        this.fullHashesExpireAt = fullHashesExpireAt;
-    }
-
-    public HashMap<String, HashSet<String>> getFullHashes() {
-        return fullHashes;
-    }
-
-    public void setFullHashes(HashMap<String, HashSet<String>> fullHashes) {
-        this.fullHashes = fullHashes;
     }
 }

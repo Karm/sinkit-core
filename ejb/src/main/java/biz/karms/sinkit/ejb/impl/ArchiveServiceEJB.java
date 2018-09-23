@@ -5,10 +5,10 @@ import biz.karms.sinkit.ejb.elastic.ElasticService;
 import biz.karms.sinkit.ejb.elastic.logstash.LogstashClient;
 import biz.karms.sinkit.ejb.util.IoCIdentificationUtils;
 import biz.karms.sinkit.eventlog.EventLogRecord;
-import biz.karms.sinkit.eventlog.VirusTotalRequestStatus;
 import biz.karms.sinkit.exception.ArchiveException;
+import biz.karms.sinkit.ioc.IoCAccuCheckerReport;
 import biz.karms.sinkit.ioc.IoCRecord;
-import biz.karms.sinkit.ioc.IoCVirusTotalReport;
+import biz.karms.sinkit.ioc.IoCSeen;
 import com.google.gson.Gson;
 import org.apache.commons.collections.CollectionUtils;
 import org.elasticsearch.index.query.FilterBuilders;
@@ -24,10 +24,7 @@ import javax.inject.Inject;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -87,22 +84,28 @@ public class ArchiveServiceEJB implements ArchiveService {
         ioc.setDocumentId(IoCIdentificationUtils.computeHashedId(ioc));
         //compute uniqueReference
         ioc.setUniqueRef(IoCIdentificationUtils.computeUniqueReference(ioc));
-        final Map<String, Map<String, Object>> fieldsToUpdate = new HashMap<>();
-        fieldsToUpdate.put("seen", new HashMap<String, Object>(){
-            {
-                put("last", ioc.getSeen().getLast());
-                // TODO: Isn't this field obsoleted by the new accuracy model?
-                put("accuracy", ioc.getFeed().getAccuracy());
-            }
-        });
+
+        final IoCRecord fieldsToUpdate = new IoCRecord();
+        IoCSeen seen = new IoCSeen();
+        seen.setLast(ioc.getSeen().getLast());
+        fieldsToUpdate.setAccuracy(ioc.getAccuracy());
+        fieldsToUpdate.setSeen(seen);
+
         return elasticService.update(ioc.getDocumentId(), fieldsToUpdate, ELASTIC_IOC_INDEX, ELASTIC_IOC_TYPE, ioc);
     }
 
+    /**
+     * Wrapper method for elasticService.update
+     *
+     * @param report
+     * @param document_id
+     * @return true if update is processed
+     * @throws ArchiveException
+     */
     @Override
-    public boolean setVirusTotalReportToIoCRecord(final IoCRecord ioc, final IoCVirusTotalReport[] reports) throws ArchiveException {
-        final Map<String, IoCVirusTotalReport[]> vtReports = new HashMap<>();
-        vtReports.put("virus_total_reports", reports);
-        return elasticService.update(ioc.getDocumentId(), vtReports, ELASTIC_IOC_INDEX, ELASTIC_IOC_TYPE, null);
+    public boolean setReportToIoCRecord(final IoCAccuCheckerReport report, String document_id) throws ArchiveException {
+        return elasticService.update(document_id, report, ELASTIC_IOC_INDEX, ELASTIC_IOC_TYPE, null);
+
     }
 
     @Override
@@ -148,6 +151,21 @@ public class ArchiveServiceEJB implements ArchiveService {
         return logRecord;
     }
 
+    /**
+     * Lists matching entris, lists up to DEF_LIMIT of them (defined in ElasticServiceEJB.class)
+     *
+     * @param name  name of the field to be matched  against
+     * @param value value of this field
+     * @return List of matching entries
+     * @throws ArchiveException
+     */
+    @Override
+    public List<IoCRecord> getMatchingEntries(String name, String value) throws ArchiveException {
+        final QueryBuilder query = QueryBuilders.termQuery(name, value);
+        // FilterBuilders.missingFilter("whitelist_name")
+        return elasticService.search(query, null, ELASTIC_IOC_INDEX, ELASTIC_IOC_TYPE, IoCRecord.class);
+    }
+
     @Override
     public List<IoCRecord> getActiveNotWhitelistedIoCs(final int from, final int size) throws ArchiveException {
         final QueryBuilder query = QueryBuilders.filteredQuery(
@@ -180,40 +198,5 @@ public class ArchiveServiceEJB implements ArchiveService {
         return iocs.get(0);
     }
 
-    @Override
-    public EventLogRecord getLogRecordWaitingForVTScan(final int notAllowedFailedMinutes) throws ArchiveException {
-        final QueryBuilder query = getWaitingLogRecordQuery(VirusTotalRequestStatus.WAITING, notAllowedFailedMinutes);
-        final SortBuilder sort = SortBuilders.fieldSort("logged").order(SortOrder.ASC);
-        final List<EventLogRecord> logRecords =
-                elasticService.search(query, sort, ELASTIC_LOG_INDEX + "-*",
-                        ELASTIC_LOG_TYPE, 0, 1, EventLogRecord.class);
-        if (CollectionUtils.isEmpty(logRecords)) {
-            return null;
-        }
-        return logRecords.get(0);
-    }
 
-    @Override
-    public EventLogRecord getLogRecordWaitingForVTReport(final int notAllowedFailedMinutes) throws ArchiveException {
-        final QueryBuilder query = getWaitingLogRecordQuery(VirusTotalRequestStatus.WAITING_FOR_REPORT, notAllowedFailedMinutes);
-        final SortBuilder sort = SortBuilders.fieldSort("virus_total_request.processed")
-                .order(SortOrder.ASC)
-                .unmappedType("date");
-        final List<EventLogRecord> logRecords =
-                elasticService.search(query, sort, ELASTIC_LOG_INDEX + "-*",
-                        ELASTIC_LOG_TYPE, 0, 1, EventLogRecord.class);
-        if (CollectionUtils.isEmpty(logRecords)) {
-            return null;
-        }
-
-        return logRecords.get(0);
-    }
-
-    private QueryBuilder getWaitingLogRecordQuery(final VirusTotalRequestStatus status, final int notAllowedFailedMinutes) {
-        final String statusTerm = gson.toJson(status).replace("\"", "");
-        final String notAllowedFailedRange = "now-" + notAllowedFailedMinutes + "m";
-        return QueryBuilders.boolQuery()
-                .must(QueryBuilders.termQuery("virus_total_request.status", statusTerm))
-                .mustNot(QueryBuilders.rangeQuery("virus_total_request.failed").gt(notAllowedFailedRange));
-    }
 }

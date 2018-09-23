@@ -8,8 +8,6 @@ import biz.karms.sinkit.eventlog.EventDNSRequest;
 import biz.karms.sinkit.eventlog.EventLogAction;
 import biz.karms.sinkit.eventlog.EventLogRecord;
 import biz.karms.sinkit.eventlog.EventReason;
-import biz.karms.sinkit.eventlog.VirusTotalRequest;
-import biz.karms.sinkit.eventlog.VirusTotalRequestStatus;
 import biz.karms.sinkit.exception.ArchiveException;
 import biz.karms.sinkit.exception.IoCSourceIdException;
 import biz.karms.sinkit.ioc.IoCClassification;
@@ -91,9 +89,11 @@ public class DNSApiLoggingEJB {
 
         // Problems with Map.Entry in Elastic [TODO]
         final Map<String, Map<String, Integer>> accuracyFeed = new HashMap<>();
-        accuracyFeed.put(theMostAccurateFeed.getKey(),theMostAccurateFeed.getValue());
-        final int accuracy = theMostAccurateFeed.getValue().values().stream().mapToInt(Integer::intValue).sum();
-        logRecord.setAccuracy(new Accuracy(accuracy, accuracyFeed));
+        if (theMostAccurateFeed != null) {
+            accuracyFeed.put(theMostAccurateFeed.getKey(), theMostAccurateFeed.getValue());
+            final int accuracy = theMostAccurateFeed.getValue().values().stream().mapToInt(Integer::intValue).sum();
+            logRecord.setAccuracy(new Accuracy(accuracy, accuracyFeed));
+        }
 
         final EventDNSRequest request = new EventDNSRequest();
         request.setIp(requestIp);
@@ -110,7 +110,6 @@ public class DNSApiLoggingEJB {
         logRecord.setClient(clientUid);
         logRecord.setLogged(Calendar.getInstance().getTime());
 
-        VirusTotalRequestStatus vtRequestStatus;
         if (MapUtils.isNotEmpty(matchedIoCs)) {
             final Set<IoCRecord> matchedIoCsList = new HashSet<>();
             log.log(Level.FINE, "Iterating matchedIoCs...");
@@ -131,14 +130,7 @@ public class DNSApiLoggingEJB {
             }
             final IoCRecord[] matchedIoCsArray = matchedIoCsList.toArray(new IoCRecord[matchedIoCsList.size()]);
             logRecord.setMatchedIocs(matchedIoCsArray);
-            vtRequestStatus = VirusTotalRequestStatus.WAITING;
-        } else {
-            vtRequestStatus = VirusTotalRequestStatus.NOT_NEEDED;
         }
-
-        final VirusTotalRequest vtReq = new VirusTotalRequest();
-        vtReq.setStatus(vtRequestStatus);
-        logRecord.setVirusTotalRequest(vtReq);
 
         Arrays.stream(logRecord.getMatchedIocs()).filter(x -> DNSApiEJB.CUSTOM_LIST_FEED_NAME.equals(x.getFeed().getName())).forEach(x -> x.setUniqueRef(null));
 
@@ -155,7 +147,6 @@ public class DNSApiLoggingEJB {
             log.warning("Match IoC with id " + iocId + " was not found (deactivated??) -> skipping.");
             return null;
         }
-        ioc.setVirusTotalReports(null);
         ioc.getSeen().setLast(null);
         ioc.setRaw(null);
         ioc.setActive(null);
@@ -180,7 +171,7 @@ public class DNSApiLoggingEJB {
         classification.setType(type);
         ioc.setClassification(classification);
         final IoCSource source = new IoCSource();
-        source.setFQDN(matchedFQDN);
+        source.setFqdn(matchedFQDN);
         ioc.setSource(source);
         final IoCTime time = new IoCTime();
         time.setObservation(Calendar.getInstance().getTime());
@@ -211,7 +202,6 @@ public class DNSApiLoggingEJB {
                 return null;
             }
 
-            retrievedIoC.setVirusTotalReports(null);
             retrievedIoC.getSeen().setLast(null);
             retrievedIoC.setRaw(null);
             retrievedIoC.setActive(null);

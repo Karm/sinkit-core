@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd"
-        >
+>
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <artifactId>sinkit</artifactId>
         <groupId>biz.karms.sinkit</groupId>
-        <version>2.0.0-SNAPSHOT</version>
+        <version>2.2.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>sinkit-ejb</artifactId>
@@ -116,19 +116,18 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- VirusTotal client-->
-        <dependency>
-            <groupId>com.kanishka.api</groupId>
-            <artifactId>VirustotalPublicV2.0</artifactId>
-            <version>${com.kanishka.api.VirustotalPublicV2.0.version}</version>
-        </dependency>
-
         <!-- jUnit testing -->
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.hamcrest</groupId>
+                    <artifactId>hamcrest-core</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- Mockito -->
@@ -137,7 +136,38 @@
             <artifactId>mockito-core</artifactId>
             <version>${mockito.version}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.hamcrest</groupId>
+                    <artifactId>hamcrest-core</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
+
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>java-hamcrest</artifactId>
+            <version>${hamcrest.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>biz.karms.crc64java</groupId>
+            <artifactId>crc64java-java</artifactId>
+            <version>${crc64.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>biz.karms.crc64java</groupId>
+            <artifactId>crc64java-linux-x86_64</artifactId>
+            <version>${crc64.version}</version>
+        </dependency>
+
     </dependencies>
 
     <build>

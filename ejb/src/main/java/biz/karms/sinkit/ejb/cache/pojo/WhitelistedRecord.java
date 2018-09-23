@@ -1,11 +1,16 @@
 package biz.karms.sinkit.ejb.cache.pojo;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.Serializable;
 import java.util.Calendar;
 
 /**
  * @author Tomas Kozel
  */
+@Getter
+@Setter
 public class WhitelistedRecord implements Serializable {
 
     private static final long serialVersionUID = -562033533677059L;
@@ -13,38 +18,6 @@ public class WhitelistedRecord implements Serializable {
     private String sourceName;
     private Calendar expiresAt;
     private boolean completed;
-
-    public Calendar getExpiresAt() {
-        return expiresAt;
-    }
-
-    public void setExpiresAt(Calendar expiresAt) {
-        this.expiresAt = expiresAt;
-    }
-
-    public String getRawId() {
-        return rawId;
-    }
-
-    public void setRawId(String rawId) {
-        this.rawId = rawId;
-    }
-
-    public String getSourceName() {
-        return sourceName;
-    }
-
-    public void setSourceName(String sourceName) {
-        this.sourceName = sourceName;
-    }
-
-    public boolean isCompleted() {
-        return completed;
-    }
-
-    public void setCompleted(boolean completed) {
-        this.completed = completed;
-    }
 
     @Override
     public boolean equals(Object o) {
