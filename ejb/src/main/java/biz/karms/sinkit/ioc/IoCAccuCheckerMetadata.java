@@ -1,5 +1,6 @@
 package biz.karms.sinkit.ioc;
 
+import com.google.gson.Gson;
 import lombok.Getter;
 import lombok.Setter;
 import java.util.Date;
@@ -18,9 +19,6 @@ public class IoCAccuCheckerMetadata {
 
     @Override
     public String toString() {
-        return "IoCAccuCheckerMetadata{" +
-                "content=" + content +
-                ", timestamp=" + timestamp.toString() +
-                '}';
+        return new Gson().toJson(this);
     }
 }
