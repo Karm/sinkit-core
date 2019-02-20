@@ -79,14 +79,9 @@ public class SinkitREST implements Serializable {
             return Response.status(Response.Status.OK).entity("Succeeded in updating with accuchecker report: " + report).build();
         } catch (ArchiveException ex) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(ex.getMessage()).build();
-        } catch (JsonParseException ex) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
-        } catch (IoCValidationException ex) {
-
+        } catch (JsonParseException | IoCValidationException ex) {
             return Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
         }
-
-
     }
 
     @POST

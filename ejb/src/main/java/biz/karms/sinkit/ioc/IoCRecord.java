@@ -50,7 +50,6 @@ public class IoCRecord implements Indexable {
         if(accuracy != null){
             this.accuracySum=accuracy.values().stream().reduce(0,Integer::sum);
         }
-
     }
 
     public void updateWithAccuCheckerReport(IoCAccuCheckerReport report){
@@ -68,6 +67,5 @@ public class IoCRecord implements Indexable {
         }
         combinedMetadata.putAll(report.getMetadata());
         setMetadata(combinedMetadata);
-
     }
 }

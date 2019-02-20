@@ -1,4 +1,4 @@
-version: 2
+version: 2.0
 jobs:
   build:
     docker:
@@ -23,7 +23,7 @@ jobs:
           SINKIT_LOCAL_CACHE_SIZE: 10
           SINKIT_LOGLEVEL: ALL
           SINKIT_MS_RAM: 256m
-          SINKIT_MX_RAM: 256m
+          SINKIT_MX_RAM: 512m
           SINKIT_NIC: lo
           SINKIT_SINKHOLE_IP: 127.0.0.1
           SINKIT_SINKHOLE_IPV6: ::1
@@ -56,7 +56,7 @@ jobs:
           INFINISPAN_ADDR_PREFIX: "127"
           INFINISPAN_LOGLEVEL: "DEBUG"
           INFINISPAN_FILEPING_PATH: "/tmp"
-          INFINISPAN_MS_RAM: "2g"
+          INFINISPAN_MS_RAM: "256m"
           INFINISPAN_MX_RAM: "2g"
           INFINISPAN_NIC: "lo"
           INFINISPAN_GMS_MAX_JOIN_ATTEMPTS: "1"
@@ -66,8 +66,7 @@ jobs:
 
       - restore_cache: # restore the saved cache after the first run or if `pom.xml` has changed
           key: sinkit-core
-      
-      - run: mvn install -DskipTests -Djdk.net.URLClassPath.disableClassPathURLCheck=true
+      - run: mvn clean install -Djdk.net.URLClassPath.disableClassPathURLCheck=true
 # gets the project dependencies
       
       - save_cache: # saves the project dependencies
@@ -76,11 +75,11 @@ jobs:
             - ~/.m2
 
          #setup elastic with templates
-      - run: sleep 60
+      - run: until $(curl --silent --output /dev/null --fail --head http://localhost:9200); do echo -e ".\c";sleep 1;done
       - run: curl -XPUT localhost:9200/_template/iocs -d @integration-tests/src/test/resources/elastic_iocs.json
       - run: curl -XPUT localhost:9200/_template/logs -d @integration-tests/src/test/resources/elastic_logs.json
       - run: curl -XPUT localhost:9200/_template/passivedns -d @integration-tests/src/test/resources/elastic_passivedns.json
+      - run: until $(curl --silent --output /dev/null --fail --head http://127.0.0.1:10090/error); do echo -e ".\c";sleep 1;done
 
-      # run tests!
-      - run: mvn integration-test -Parq-wildfly-managed -Dhotrod_host=127.0.0.1 -Dhotrod_port=11322 -Djdk.net.URLClassPath.disableClassPathURLCheck=true
-
+    # run tests!
+      - run: mvn integration-test -Parq-wildfly-managed -Dhotrod_host=127.0.0.1 -Dhotrod_port=11322 -Djdk.net.URLClassPath.disableClassPathURLCheck=true -Djvm.args.debug=""

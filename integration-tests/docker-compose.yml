@@ -1,0 +1,36 @@
+version: '3'
+services:
+  infinispan:
+    image: karm/sinkit-infinispan:1.27
+    ports:
+    - "127.0.0.1:11322:11222"
+    - "127.0.0.1:9991:9990"
+    environment:
+      TEST_NODE_NAME: "node"
+      TEST_NODE_OFFSET: "0"
+      INFINISPAN_ADDR_PREFIX: "172."
+      INFINISPAN_LOGLEVEL: "DEBUG"
+      INFINISPAN_FILEPING_PATH: "/tmp"
+      INFINISPAN_MS_RAM: "256m"
+      INFINISPAN_MX_RAM: "2g"
+      INFINISPAN_NIC: "eth0"
+      INFINISPAN_GMS_MAX_JOIN_ATTEMPTS: "1"
+
+  elastic:
+    image: hugeox/sinkit-elastic:1.0
+    network_mode: "host"
+#   Why host? Elastic node is trying 9301, 9302, ... to find
+#   our Sinkit Core Elastic node...
+#   ports:
+#    - "127.0.0.1:9200:9200"
+#    - "127.0.0.1:9300:9300"
+    environment:
+      ES_CLUSTER: "archive"
+      ES_HEAP_SIZE: "256m"
+      ES_INT: "lo"
+      ES_SERVICE_NAME: "archive"
+      ES_NODE_MASTER: "true"
+      ES_NODE_DATA: "true"
+      ES_GROOVY_ENABLED: "true"
+      ES_SCRIPT_DISABLE: "false"
+      ES_MINIMUM_MASTER_NODES: "1"

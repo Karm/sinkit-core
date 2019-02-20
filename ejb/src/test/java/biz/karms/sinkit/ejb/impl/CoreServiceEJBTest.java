@@ -4,10 +4,10 @@ import biz.karms.sinkit.ejb.ArchiveService;
 import biz.karms.sinkit.ejb.BlacklistCacheService;
 import biz.karms.sinkit.ejb.WhitelistCacheService;
 import biz.karms.sinkit.ejb.cache.pojo.WhitelistedRecord;
+import biz.karms.sinkit.exception.TooOldIoCException;
+import biz.karms.sinkit.ioc.IoCAPI;
 import biz.karms.sinkit.ioc.IoCAccuCheckerMetadata;
 import biz.karms.sinkit.ioc.IoCAccuCheckerReport;
-import biz.karms.sinkit.exception.TooOldIoCException;
-
 import biz.karms.sinkit.ioc.IoCClassification;
 import biz.karms.sinkit.ioc.IoCFeed;
 import biz.karms.sinkit.ioc.IoCRecord;
@@ -25,13 +25,14 @@ import org.mockito.runners.MockitoJUnitRunner;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Date;
 import java.util.logging.Logger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.eq;
@@ -62,10 +63,10 @@ public class CoreServiceEJBTest {
     private CoreServiceEJB coreService;
 
     @Before
-    public void setUp () throws Exception {
+    public void setUp() throws Exception {
         Field hours = CoreServiceEJB.class.getDeclaredField("iocActiveHours");
         hours.setAccessible(true);
-        hours.set(coreService,24);
+        hours.set(coreService, 24);
     }
 
     /**
@@ -110,8 +111,8 @@ public class CoreServiceEJBTest {
         when(archiveService.getMatchingActiveEntries("source.id.value", "mal.com")).thenReturn(iocs);
         when(archiveService.archiveReceivedIoCRecord(ioc1)).thenReturn(true);
         when(archiveService.archiveReceivedIoCRecord(ioc2)).thenReturn(true);
-        when(blacklistCacheService.addToCache(iocs.get(0))).thenReturn(true);
-        when(blacklistCacheService.addToCache(iocs.get(1))).thenReturn(true);
+        when(blacklistCacheService.addToCache(iocs.get(0), IoCAPI.ACCUCHECKER)).thenReturn(true);
+        when(blacklistCacheService.addToCache(iocs.get(1), IoCAPI.ACCUCHECKER)).thenReturn(true);
 
         //call tested method
         assertTrue(coreService.updateWithAccuCheckerReport(accu_report));
@@ -120,8 +121,8 @@ public class CoreServiceEJBTest {
         verify(archiveService).getMatchingActiveEntries("source.id.value", "mal.com");
         verify(archiveService).archiveReceivedIoCRecord(ioc1);
         verify(archiveService).archiveReceivedIoCRecord(ioc2);
-        verify(blacklistCacheService).addToCache(iocs.get(0));
-        verify(blacklistCacheService).addToCache(iocs.get(1));
+        verify(blacklistCacheService).addToCache(iocs.get(0), IoCAPI.ACCUCHECKER);
+        verify(blacklistCacheService).addToCache(iocs.get(1), IoCAPI.ACCUCHECKER);
         assertEquals(new Integer(80), iocs.get(0).getAccuracy().get("feed"));
         assertEquals(new Integer(20), iocs.get(0).getAccuracy().get("SomeAccuracyProvider"));
         assertEquals(new Integer(50), iocs.get(1).getAccuracy().get("feed"));
@@ -132,12 +133,13 @@ public class CoreServiceEJBTest {
 
     /**
      * Tests the processIoCRecord method for the case when the ioc sent to it is not on whitelist and is active.
+     *
      * @throws Exception
      */
     @Test
-    public void processNotOnWhitelistActiveTest() throws Exception{
+    public void processNotOnWhitelistActiveTest() throws Exception {
         //prepare
-        IoCRecord ioc = getIoCRecord(null, "gooddomain.malware.com","SomeFeed", 1, "malware");
+        IoCRecord ioc = getIoCRecord(null, "gooddomain.malware.com", "SomeFeed", 1, "malware");
         // IoC is newer than oldest we allow 1<24
         when(whitelistCacheService.get("malware.com")).thenReturn(null);
         when(whitelistCacheService.get("gooddomain.malware.com")).thenReturn(null);
@@ -148,9 +150,9 @@ public class CoreServiceEJBTest {
         //verify
         verify(whitelistCacheService).get("malware.com");
         verify(whitelistCacheService).get("gooddomain.malware.com");
-        assertEquals(null,ioc.getWhitelistName());
+        assertNull(null, ioc.getWhitelistName());
         verify(archiveService).archiveReceivedIoCRecord(ioc);
-        verify(blacklistCacheService).addToCache(ioc);
+        verify(blacklistCacheService).addToCache(ioc, IoCAPI.IOC);
         verifyNoMoreInteractions(archiveService);
         verifyNoMoreInteractions(blacklistCacheService);
         assertNotNull(ioc.getSeen().getFirst());
@@ -163,20 +165,21 @@ public class CoreServiceEJBTest {
 
     /**
      * Tests processIoCRecord method for the case when the entry sent to it is on a whitelist
+     *
      * @throws Exception
      */
     @Test
-    public void processOnWhitelistActiveTest() throws Exception{
+    public void processOnWhitelistActiveTest() throws Exception {
         //preparation
         Calendar expiresAt = Calendar.getInstance();
         expiresAt.add(Calendar.DAY_OF_MONTH, 1);
-        IoCRecord ioc= getIoCRecord(null, "notmalware.somewebhosting.com",
+        IoCRecord ioc = getIoCRecord(null, "notmalware.somewebhosting.com",
                 "SomeFeed", 1, "malware");
         // IoC is newer than oldest we allow 1<24
         //somewebhosting.com can host malware
         when(whitelistCacheService.get("somewebhosting.com")).thenReturn(null);
         //however, notmalware.somewebhosting.com is whitelisted
-        WhitelistedRecord white = createWhite("notmalware.somewebhosting.com" ,
+        WhitelistedRecord white = createWhite("notmalware.somewebhosting.com",
                 "mywhitelist", expiresAt, true);
         when(whitelistCacheService.get("notmalware.somewebhosting.com")).thenReturn(white);
 
@@ -187,10 +190,10 @@ public class CoreServiceEJBTest {
         verify(whitelistCacheService).get("somewebhosting.com");
         verify(whitelistCacheService).get("notmalware.somewebhosting.com");
         verify(archiveService).archiveReceivedIoCRecord(ioc);
-        verify(blacklistCacheService).addToCache(ioc);
+        verify(blacklistCacheService).addToCache(ioc, IoCAPI.IOC);
         verifyNoMoreInteractions(archiveService);
         verifyNoMoreInteractions(blacklistCacheService);
-        assertEquals("mywhitelist",ioc.getWhitelistName());
+        assertEquals("mywhitelist", ioc.getWhitelistName());
         assertNotNull(ioc.getSeen().getFirst());
         assertNotNull(ioc.getSeen().getLast());
         assertNotNull(ioc.getTime().getReceivedByCore());
@@ -200,15 +203,15 @@ public class CoreServiceEJBTest {
                 "notmalware.somewebhosting.com");
     }
 
-    @Test (expected = TooOldIoCException.class)
-    public void processNotActiveTest() throws Exception{
-        IoCRecord ioc= getIoCRecord(null, "somedomain.malware.com","SomeFeed", 52, "malware");
+    @Test(expected = TooOldIoCException.class)
+    public void processNotActiveTest() throws Exception {
+        IoCRecord ioc = getIoCRecord(null, "somedomain.malware.com", "SomeFeed", 52, "malware");
         // IoC is older than oldest we allow 52>24
         coreService.processIoCRecord(ioc);
     }
 
     @Test
-    public void     processExistingCompletedNoUpdateTest() throws Exception {
+    public void processExistingCompletedNoUpdateTest() throws Exception {
         Calendar expiresAt = Calendar.getInstance();
         expiresAt.add(Calendar.DAY_OF_MONTH, 1);
         WhitelistedRecord white = createWhite("whalebone.io", "whalebone", expiresAt, true);
@@ -378,17 +381,18 @@ public class CoreServiceEJBTest {
 
     /**
      * creates IoCRecord observed ageHours in the past
+     *
      * @param ip
      * @param fqdn
      * @param sourceName feed name
-     * @param ageHours sets time.observation to current
+     * @param ageHours   sets time.observation to current
      * @return
      */
     public final IoCRecord getIoCRecord(String ip, String fqdn, String sourceName, int ageHours, String classificationType) {
         final IoCRecord ioc = new IoCRecord();
 
         Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.HOUR,-ageHours);
+        cal.add(Calendar.HOUR, -ageHours);
         Date observation = cal.getTime();
         IoCTime time = new IoCTime();
         ioc.setTime(time);

@@ -1,7 +1,7 @@
 package biz.karms.sinkit.ejb.impl;
 
 import biz.karms.sinkit.ejb.cache.pojo.BlacklistedRecord;
-
+import biz.karms.sinkit.ioc.IoCAPI;
 import biz.karms.sinkit.ioc.IoCRecord;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.GsonBuilder;
@@ -37,10 +37,10 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.eq;
 
 /**
  * @author Krystof Kolar
@@ -59,18 +59,18 @@ public class BlacklistCacheServiceEJBTest {
     private Logger log;
 
     @Mock
-     RemoteCache<String, BlacklistedRecord> blacklistCache;
+    RemoteCache<String, BlacklistedRecord> blacklistCache;
 
     @InjectMocks
     private BlacklistCacheServiceEJB blacklistCacheService;
 
     @Before
-    public void setUp () throws Exception{
+    public void setUp() throws Exception {
         //ioc1, ioc2 and their corresponding key (both have the same)
         //will be used throughout
         final InputStream ioc1InputStream = BlacklistCacheServiceEJBTest.class.getClassLoader()
                 .getResourceAsStream("ioc1.json");
-       ioc1 = new GsonBuilder().setDateFormat(IoCRecord.DATE_FORMAT)
+        ioc1 = new GsonBuilder().setDateFormat(IoCRecord.DATE_FORMAT)
                 .create().fromJson(new InputStreamReader(ioc1InputStream),
                         IoCRecord.class);
         key = DigestUtils.md5Hex(ioc1.getSource().getId().getValue());
@@ -115,6 +115,7 @@ public class BlacklistCacheServiceEJBTest {
 
     /**
      * Tests removal of a whole cache entry (even when it contains multiple feeds)
+     *
      * @throws Exception
      */
     @Test
@@ -134,6 +135,7 @@ public class BlacklistCacheServiceEJBTest {
     /**
      * Tests method removeWholeObjectFromCache on the case when the object is not in the cache.
      * There should be no other interactions with the cache than checking whether the object is present
+     *
      * @throws Exception
      */
     @Test
@@ -150,11 +152,12 @@ public class BlacklistCacheServiceEJBTest {
     }
 
     /**
-     *This tests the case when there is 1 feed in the cached entry. Removing it means removing the whole entry
+     * This tests the case when there is 1 feed in the cached entry. Removing it means removing the whole entry
+     *
      * @throws Exception
      */
     @Test
-    public void removeFromCache1FeedTest() throws Exception{
+    public void removeFromCache1FeedTest() throws Exception {
         //prepare
         final BlacklistedRecord blacklistedRecord1 = gsonBuilder
                 .create()
@@ -175,14 +178,15 @@ public class BlacklistCacheServiceEJBTest {
         verifyNoMoreInteractions(blacklistCache);
     }
 
-   /**
-    *This tests the case when there are 2 feeds in the cached record, and one of them gets removed
-    * @throws Exception
-    */
+    /**
+     * This tests the case when there are 2 feeds in the cached record, and one of them gets removed
+     *
+     * @throws Exception
+     */
     @Test
-    public void removeFromCache2FeedsTest() throws Exception{
+    public void removeFromCache2FeedsTest() throws Exception {
         //prepare
-        final BlacklistedRecord blacklistedRecord2= gsonBuilder
+        final BlacklistedRecord blacklistedRecord2 = gsonBuilder
                 .create()
                 .fromJson(new InputStreamReader(blacklistedRecord2InputStream), BlacklistedRecord.class);
         when(blacklistCache.containsKey(key)).thenReturn(true);
@@ -196,19 +200,20 @@ public class BlacklistCacheServiceEJBTest {
         verify(blacklistCache).containsKey(key);
         verify(blacklistCache).withFlags(Flag.SKIP_CACHE_LOAD);
         verify(blacklistCache).get(key);
-        verify(blacklistCache).replace(key,blacklistedRecord2);
+        verify(blacklistCache).replace(key, blacklistedRecord2);
         //one feed gets removed, one remains
         assertEquals(Collections.singleton("feed2"),
                 blacklistedRecord2.getAccuracy().keySet());
         assertEquals(Collections.singleton("feed2"),
                 blacklistedRecord2.getSources().keySet());
         //this shouldn't change
-        assertEquals(key,blacklistedRecord2.getBlackListedDomainOrIP());
+        assertEquals(key, blacklistedRecord2.getBlackListedDomainOrIP());
         verifyNoMoreInteractions(blacklistCache);
     }
 
     /**
-    *ioc2 from feed2 gets added to the entry that is based on the ioc from feed1 (blacklistedRecord1)
+     * ioc2 from feed2 gets added to the entry that is based on the ioc from feed1 (blacklistedRecord1)
+     *
      * @throws Exception
      */
     @Test
@@ -222,7 +227,7 @@ public class BlacklistCacheServiceEJBTest {
         when(blacklistCache.get(key)).thenReturn(blacklistedRecord1);
 
         //call
-        assertTrue(blacklistCacheService.addToCache(ioc2));
+        assertTrue(blacklistCacheService.addToCache(ioc2, IoCAPI.IOC));
 
         //verify
         verify(blacklistCache).containsKey(key);
@@ -231,15 +236,16 @@ public class BlacklistCacheServiceEJBTest {
         verify(blacklistCache).replace(key, blacklistedRecord1);
         //one feed gets added, we have 2 feed entries in total
         assertEquals(new HashSet<>(Arrays.asList("feed1", "feed2")),
-                blacklistedRecord1.getAccuracy().keySet() );
+                blacklistedRecord1.getAccuracy().keySet());
         assertEquals(new HashSet<>(Arrays.asList("feed1", "feed2")),
-                blacklistedRecord1.getSources().keySet() );
-        assertEquals(key,blacklistedRecord1.getBlackListedDomainOrIP());
+                blacklistedRecord1.getSources().keySet());
+        assertEquals(key, blacklistedRecord1.getBlackListedDomainOrIP());
         verifyNoMoreInteractions(blacklistCache);
     }
 
     /**
-    *ioc1 gets added to empty cache
+     * ioc1 gets added to empty cache
+     *
      * @throws Exception
      */
     @Test
@@ -249,11 +255,11 @@ public class BlacklistCacheServiceEJBTest {
         when(blacklistCache.containsKey(key)).thenReturn(false);
 
         //call
-        assertTrue(blacklistCacheService.addToCache(ioc1));
+        assertTrue(blacklistCacheService.addToCache(ioc1, IoCAPI.IOC));
 
         //verify that something gets inserted
         verify(blacklistCache).containsKey(key);
-        verify(blacklistCache).put(eq(key) , argumentCaptor.capture());
+        verify(blacklistCache).put(eq(key), argumentCaptor.capture());
         //verify that what gets inserted is the correct thing
         assertEquals(key, argumentCaptor.getValue().getBlackListedDomainOrIP());
         assertEquals(ioc1.getAccuracy(),
@@ -266,8 +272,9 @@ public class BlacklistCacheServiceEJBTest {
     }
 
     /**
-    *ioc1 gets added to cache when its corresponding blacklist entry is already there but with a lower feed accuracy (blacklisted_record1 has feed1.accuracy set to 10)
-     *  Accuracy will get updated with the new value(here 34)
+     * ioc1 gets added to cache when its corresponding blacklist entry is already there but with a lower feed accuracy (blacklisted_record1 has feed1.accuracy set to 10)
+     * Accuracy will get updated with the new value(here 34)
+     *
      * @throws Exception
      */
     @Test
@@ -275,7 +282,7 @@ public class BlacklistCacheServiceEJBTest {
         //prepare
         final BlacklistedRecord blacklistedRecord1 = gsonBuilder.create()
                 .fromJson(new InputStreamReader(blacklistedRecord1InputStream), BlacklistedRecord.class);
-        blacklistedRecord1.getAccuracy().get("feed1").put("feed",10);
+        blacklistedRecord1.getAccuracy().get("feed1").put("feed", 10);
         assertEquals(new Integer(10), blacklistedRecord1.getAccuracy().get("feed1").get("feed"));
 
         when(blacklistCache.containsKey(key)).thenReturn(true);
@@ -283,7 +290,7 @@ public class BlacklistCacheServiceEJBTest {
         when(blacklistCache.get(key)).thenReturn(blacklistedRecord1);
 
         //call
-        assertTrue(blacklistCacheService.addToCache(ioc1));
+        assertTrue(blacklistCacheService.addToCache(ioc1, IoCAPI.IOC));
 
         //verify
         verify(blacklistCache).containsKey(key);
@@ -292,7 +299,7 @@ public class BlacklistCacheServiceEJBTest {
         verify(blacklistCache).replace(key, blacklistedRecord1);
         //accuracy gets updated to 34 (ioc1's accuracy)
         assertEquals(new Integer(34), blacklistedRecord1.getAccuracy().get("feed1").get("feed"));
-        assertEquals(key,blacklistedRecord1.getBlackListedDomainOrIP());
+        assertEquals(key, blacklistedRecord1.getBlackListedDomainOrIP());
         verifyNoMoreInteractions(blacklistCache);
     }
 }

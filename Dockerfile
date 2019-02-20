@@ -1,5 +1,5 @@
 FROM fedora:25
-MAINTAINER Michal Karm Babacek <karm@email.cz
+MAINTAINER Michal Karm Babacek <karm@email.cz>
 LABEL description="Codename Feed: Sinkit Core POC"
 
 ENV DEPS            java-1.8.0-openjdk-devel.x86_64 unzip wget gawk sed openssl jna.x86_64 jsch-agent-proxy-usocket-jna.noarch nfs-utils sudo

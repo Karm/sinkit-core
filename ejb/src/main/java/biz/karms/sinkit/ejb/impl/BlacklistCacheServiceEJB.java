@@ -5,6 +5,7 @@ import biz.karms.sinkit.ejb.BlacklistCacheService;
 import biz.karms.sinkit.ejb.cache.annotations.SinkitCache;
 import biz.karms.sinkit.ejb.cache.annotations.SinkitCacheName;
 import biz.karms.sinkit.ejb.cache.pojo.BlacklistedRecord;
+import biz.karms.sinkit.ioc.IoCAPI;
 import biz.karms.sinkit.ioc.IoCRecord;
 import com.google.gson.Gson;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -19,8 +20,10 @@ import javax.inject.Inject;
 import java.math.BigInteger;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * @author Michal Karm Babacek
@@ -35,9 +38,10 @@ public class BlacklistCacheServiceEJB implements BlacklistCacheService {
     @SinkitCache(SinkitCacheName.infinispan_blacklist)
     private RemoteCache<String, BlacklistedRecord> blacklistCache;
 
-    //TODO: Batch mode. It is wasteful to operate for 1 single update like this for thousand times.
+    public static final String ACCUCHECKER_PREFIX = "accuchecker.";
+
     @Override
-    public boolean addToCache(final IoCRecord ioCRecord) {
+    public boolean addToCache(IoCRecord ioCRecord, IoCAPI apiSource) {
         if (ioCRecord == null || ioCRecord.getSource() == null || ioCRecord.getClassification() == null || ioCRecord.getFeed() == null || ioCRecord.getDocumentId() == null) {
             log.log(Level.SEVERE, "addToCache: ioCRecord itself or its source, documentId, classification or feed were null. Can't process that.");
             return false;
@@ -54,17 +58,33 @@ public class BlacklistCacheServiceEJB implements BlacklistCacheService {
             ioCRecord.setAccuracy(accuracy);
         }
 
+        // We prefix all fields with "ACCUCHECKER_PREFIX" internally to differentiate them from regular IoCAPI.IOC call.
+        if (apiSource == IoCAPI.ACCUCHECKER) {
+            Map<String, Integer> accuracy =
+                    ioCRecord.getAccuracy().entrySet().stream()
+                            .collect(Collectors.toMap(
+                                    e -> ACCUCHECKER_PREFIX + e.getKey(),
+                                    Map.Entry::getValue
+                            ));
+            ioCRecord.setAccuracy(new HashMap<>(accuracy));
+        }
+
         log.log(Level.FINE, "PROCESSING IOC for Blacklistcache: " + new Gson().toJson(ioCRecord));
 
         final String md5Key = DigestUtils.md5Hex(ioCRecord.getSource().getId().getValue());
         final BigInteger crc64Key = CRC64.getInstance().crc64BigInteger(ioCRecord.getSource().getId().getValue().getBytes());
         try {
+            // We are in for an update, we update feed and accuracy
             if (blacklistCache.containsKey(md5Key)) {
+
+                // Fetch the record
                 final BlacklistedRecord blacklistedRecord = blacklistCache.withFlags(Flag.SKIP_CACHE_LOAD).get(md5Key);
                 if (blacklistedRecord == null) {
-                    log.log(Level.SEVERE, "addToCache: blacklistedRecord allegedly exists in the Cache already under key " + md5Key + ", but we failed to retrieve it.");
+                    log.log(Level.SEVERE, "addToCache: blacklistedRecord allegedly exists in the Cache already under key " + md5Key + ", but we failed to retrieve it. This should never happen.");
                     return false;
                 }
+
+                // Update feed type classification
                 final HashMap<String, ImmutablePair<String, String>> feedToTypeUpdate = blacklistedRecord.getSources();
                 if (ioCRecord.getFeed().getName() != null && ioCRecord.getClassification().getType() != null) {
                     feedToTypeUpdate.putIfAbsent(ioCRecord.getFeed().getName(), new ImmutablePair<>(ioCRecord.getClassification().getType(), ioCRecord.getDocumentId()));
@@ -72,16 +92,59 @@ public class BlacklistCacheServiceEJB implements BlacklistCacheService {
                     log.log(Level.SEVERE, "addToCache: ioCRecord's feed or classification type were null");
                 }
                 blacklistedRecord.setSources(feedToTypeUpdate);
-                final HashMap<String, HashMap<String, Integer>> accuracy = blacklistedRecord.getAccuracy();
-                log.log(Level.FINE, "Old accuracy: " + new Gson().toJson(accuracy));
-                accuracy.put(ioCRecord.getFeed().getName(), new HashMap<>(ioCRecord.getAccuracy()));
-                log.log(Level.FINE, "Updated accuracy: " + new Gson().toJson(accuracy));
-                blacklistedRecord.setAccuracy(accuracy);
+
+                // Update accuracy
+                final HashMap<String, HashMap<String, Integer>> feedAccuracy = blacklistedRecord.getAccuracy();
+                log.log(Level.INFO, "Old accuracy: " + new Gson().toJson(feedAccuracy));
+
+                // We have to look at accuracy fields and figure out which ones to drop/update
+                if (feedAccuracy.keySet().contains(ioCRecord.getFeed().getName())) {
+
+                    final HashMap<String, Integer> newAccuracy = ioCRecord.getAccuracy();
+                    final HashMap<String, Integer> oldAccuracy = feedAccuracy.get(ioCRecord.getFeed().getName());
+                    final HashMap<String, Integer> updatedAccuracy = new HashMap<>(oldAccuracy.size() + newAccuracy.size());
+
+                    // We will examine prefixes and update fileds
+                    if (apiSource == IoCAPI.ACCUCHECKER) {
+
+                        // Preserve just those old that do not exist prefixed with ACCUCHECKER_PREFIX in the new batch
+                        updatedAccuracy.putAll(oldAccuracy.entrySet().stream()
+                                .filter(e -> !newAccuracy.containsKey(ACCUCHECKER_PREFIX + e.getKey()))
+                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+
+                        updatedAccuracy.putAll(newAccuracy);
+
+                        // This is not accuchecker, we simply replace all but accuchecker ones
+                    } else {
+                        // Preserve just those old prefixed with ACCUCHECKER_PREFIX
+                        updatedAccuracy.putAll(
+                                oldAccuracy.entrySet().stream().filter(e -> e.getKey().startsWith(ACCUCHECKER_PREFIX))
+                                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+
+                        // Put all new in except those that already exist prefixed with ACCUCHECKER_PREFIX
+                        updatedAccuracy.putAll(newAccuracy.entrySet().stream()
+                                .filter(e -> !updatedAccuracy.containsKey(ACCUCHECKER_PREFIX + e.getKey()))
+                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+                    }
+
+                    feedAccuracy.put(ioCRecord.getFeed().getName(), updatedAccuracy);
+                    blacklistedRecord.setAccuracy(feedAccuracy);
+
+                    // This is a new feed for this BlacklistedRecord, there is nothing to update, we just put it in
+                } else {
+                    feedAccuracy.put(ioCRecord.getFeed().getName(), ioCRecord.getAccuracy());
+                    blacklistedRecord.setAccuracy(feedAccuracy);
+                }
+
+                log.log(Level.INFO, "Updated accuracy: " + new Gson().toJson(feedAccuracy));
+
                 blacklistedRecord.setListed(Calendar.getInstance());
                 blacklistedRecord.setPresentOnWhiteList(StringUtils.isNotBlank(ioCRecord.getWhitelistName()));
                 blacklistedRecord.setCrc64Hash(crc64Key);
                 log.log(Level.FINE, "Replacing key [" + ioCRecord.getSource().getId().getValue() + "], hashed: " + md5Key);
                 blacklistCache.replace(md5Key, blacklistedRecord);
+
+                // We simply put in all accuracy we have. This is the first feed for this IoC - BlacklistedRecord
             } else {
                 final HashMap<String, ImmutablePair<String, String>> feedToType = new HashMap<>();
                 if (ioCRecord.getFeed().getName() != null && ioCRecord.getClassification().getType() != null) {
@@ -89,8 +152,7 @@ public class BlacklistCacheServiceEJB implements BlacklistCacheService {
                 } else {
                     log.log(Level.SEVERE, "addToCache: ioCRecord's feed or classification type were null");
                 }
-                final HashMap<String, Integer> accuracy = new HashMap<>();
-                accuracy.putAll(ioCRecord.getAccuracy());
+                final HashMap<String, Integer> accuracy = new HashMap<>(ioCRecord.getAccuracy());
                 final HashMap<String, HashMap<String, Integer>> feedAccuracy = new HashMap<>();
                 feedAccuracy.put(ioCRecord.getFeed().getName(), accuracy);
                 final BlacklistedRecord blacklistedRecord = new BlacklistedRecord(md5Key, crc64Key, Calendar.getInstance(), feedToType, feedAccuracy, StringUtils.isNotBlank(ioCRecord.getWhitelistName()));

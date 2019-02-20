@@ -134,7 +134,7 @@
                 Arquillian tests that execute in the specified container -->
             <id>default</id>
             <activation>
-                <activeByDefault>false</activeByDefault>
+                <activeByDefault>true</activeByDefault>
             </activation>
             <build>
                 <plugins>

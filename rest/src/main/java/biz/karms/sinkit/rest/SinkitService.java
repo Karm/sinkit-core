@@ -120,9 +120,9 @@ public class SinkitService implements Serializable {
     boolean updateAccuracy(final String report) throws ArchiveException, JsonParseException, IoCValidationException {
         log.log(Level.FINE, "Received report from accuchecker: " + report);
 
-        final IoCAccuCheckerReport parsed_report = new GsonBuilder().setDateFormat(IoCAccuCheckerReport.DATE_FORMAT).create().fromJson(report, IoCAccuCheckerReport.class);
+        final IoCAccuCheckerReport parsedReport = new GsonBuilder().setDateFormat(IoCAccuCheckerReport.DATE_FORMAT).create().fromJson(report, IoCAccuCheckerReport.class);
         // retry until true? ????
-        return coreService.updateWithAccuCheckerReport(parsed_report);
+        return coreService.updateWithAccuCheckerReport(parsedReport);
     }
 
     String processWhitelistIoCRecord(final String jsonIoCRecord) throws IoCValidationException, ArchiveException {

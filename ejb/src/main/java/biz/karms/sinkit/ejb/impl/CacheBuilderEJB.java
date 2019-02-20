@@ -3,6 +3,7 @@ package biz.karms.sinkit.ejb.impl;
 import biz.karms.sinkit.ejb.ArchiveService;
 import biz.karms.sinkit.ejb.BlacklistCacheService;
 import biz.karms.sinkit.ejb.CacheBuilder;
+import biz.karms.sinkit.ioc.IoCAPI;
 import biz.karms.sinkit.ioc.IoCRecord;
 
 import javax.ejb.AsyncResult;
@@ -20,7 +21,7 @@ import java.util.logging.Logger;
 
 /**
  * @author Tomas Kozel
- *         Maintains state
+ * Maintains state
  */
 @Stateless
 public class CacheBuilderEJB implements CacheBuilder {
@@ -75,7 +76,7 @@ public class CacheBuilderEJB implements CacheBuilder {
             do {
                 iocs = archiveService.getActiveNotWhitelistedIoCs(from, size);
                 for (IoCRecord ioc : iocs) {
-                    blacklistCacheService.addToCache(ioc);
+                    blacklistCacheService.addToCache(ioc, IoCAPI.IOC);
                 }
                 recordsCount += iocs.size();
                 from += size;

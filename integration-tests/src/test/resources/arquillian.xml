@@ -8,6 +8,8 @@
         <configuration>
             <property name="jbossHome">target/wildfly-${version.wildfly:10.1.0.Final}</property>
             <property name="outputToConsole">true</property>
+            <property name="allowConnectingToRunningServer">true</property>
+            <property name="javaVmArguments">${jvm.args.debug}</property>
         </configuration>
     </container>
     <container qualifier="jboss-remote" default="false">
@@ -17,6 +19,7 @@
             <property name="username">user</property>
             <property name="password">user</property>
             <property name="outputToConsole">true</property>
+            <property name="javaVmArguments">${jvm.args.debug}</property>
         </configuration>
     </container>
 </arquillian>

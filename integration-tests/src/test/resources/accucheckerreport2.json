@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "accufeed1": {
+     "content": "Some content",
+      "timestamp": "TIMESTAMP"
+    }
+  },
+  "accuracy": {
+    "accufeed1": 90,
+    "feed": 10
+  },
+  "source": {
+    "id": {
+      "value": "accuracy.phishing.ru"
+    }
+  },
+  "feed": {
+    "name": "FEED NAME SHOULD NOT BE UPDATED"
+  }
+}

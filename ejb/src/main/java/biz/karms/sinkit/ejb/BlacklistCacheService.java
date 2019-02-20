@@ -1,5 +1,6 @@
 package biz.karms.sinkit.ejb;
 
+import biz.karms.sinkit.ioc.IoCAPI;
 import biz.karms.sinkit.ioc.IoCRecord;
 
 import javax.ejb.Local;
@@ -9,11 +10,11 @@ import javax.ejb.Local;
  */
 @Local
 public interface BlacklistCacheService {
-    boolean addToCache(final IoCRecord ioCRecord);
+    boolean addToCache(IoCRecord ioCRecord, IoCAPI apiSource);
 
-    boolean removeFromCache(final IoCRecord ioCRecord);
+    boolean removeFromCache(IoCRecord ioCRecord);
 
-    boolean removeWholeObjectFromCache(final IoCRecord record);
+    boolean removeWholeObjectFromCache(IoCRecord record);
 
     boolean dropTheWholeCache();
 }

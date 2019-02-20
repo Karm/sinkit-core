@@ -10,6 +10,7 @@ import biz.karms.sinkit.ejb.util.IoCValidator;
 import biz.karms.sinkit.ejb.util.WhitelistUtils;
 import biz.karms.sinkit.exception.ArchiveException;
 import biz.karms.sinkit.exception.IoCValidationException;
+import biz.karms.sinkit.ioc.IoCAPI;
 import biz.karms.sinkit.ioc.IoCAccuCheckerReport;
 import biz.karms.sinkit.ioc.IoCRecord;
 import biz.karms.sinkit.ioc.IoCSeen;
@@ -26,6 +27,7 @@ import javax.ejb.Stateless;
 import javax.inject.Inject;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -133,13 +135,13 @@ public class CoreServiceEJB implements CoreService {
             // ioc is inserted as is if does not exist or last.seen is updated
             // ioc has to be inserted before blacklist record, because it needs the documentId to be computed
             archiveService.archiveReceivedIoCRecord(ioc);
-            blacklistCacheService.addToCache(ioc);
+            blacklistCacheService.addToCache(ioc, IoCAPI.IOC);
         } else {
             ioc.setWhitelistName(white.getSourceName());
             ioc.getTime().setWhitelisted(receivedByCore);
             archiveService.archiveReceivedIoCRecord(ioc);
             // Accuracy endeavour: Whitelisted, but we store it anyway.
-            blacklistCacheService.addToCache(ioc);
+            blacklistCacheService.addToCache(ioc, IoCAPI.IOC);
         }
 
         return ioc;
@@ -163,17 +165,28 @@ public class CoreServiceEJB implements CoreService {
             throw new IoCValidationException("Accuchecker report doesn't have required field accuracy.");
         }
         boolean response = true;
-        String source_id_value = report.getSource().getId().getValue();
-        List<IoCRecord> iocs = archiveService.getMatchingActiveEntries("source.id.value", source_id_value);
+        String sourceIDValue = report.getSource().getId().getValue();
+        List<IoCRecord> iocs = archiveService.getMatchingActiveEntries("source.id.value", sourceIDValue);
         for (IoCRecord ioc : iocs) {
 
-            ioc.updateWithAccuCheckerReport(report);
+            // We need to distinguish between fields coming up as an *update* from AccuChecker
+            // and those that have been there all along. See BlacklistCacheServiceEJB.addToCache -> if (apiSource == IoCAPI.ACCUCHECKER) {...
 
-            archiveService.archiveReceivedIoCRecord(ioc);
-            boolean cache_response = blacklistCacheService.addToCache(ioc);
-            if (!cache_response) {
+            HashMap<String, Integer> oldAccuracy = ioc.getAccuracy();
+
+            ioc.setAccuracy(report.getAccuracy());
+
+            boolean cacheResponse = blacklistCacheService.addToCache(ioc, IoCAPI.ACCUCHECKER);
+            if (!cacheResponse) {
                 response = false;
             }
+
+            // Restoring the former format of fields so as Elastic gets update it expects:
+
+            ioc.setAccuracy(oldAccuracy);
+
+            ioc.updateWithAccuCheckerReport(report);
+            archiveService.archiveReceivedIoCRecord(ioc);
         }
         return response;
     }

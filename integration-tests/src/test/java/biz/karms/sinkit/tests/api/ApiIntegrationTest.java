@@ -5,6 +5,8 @@ import biz.karms.sinkit.ejb.ArchiveService;
 import biz.karms.sinkit.ejb.BlacklistCacheService;
 import biz.karms.sinkit.ejb.CoreService;
 import biz.karms.sinkit.ejb.impl.ArchiveServiceEJB;
+import biz.karms.sinkit.ejb.impl.BlacklistCacheServiceEJB;
+import biz.karms.sinkit.ioc.IoCAPI;
 import biz.karms.sinkit.ioc.IoCRecord;
 import biz.karms.sinkit.ioc.IoCSourceIdType;
 import biz.karms.sinkit.tests.util.FileUtils;
@@ -114,7 +116,7 @@ public class ApiIntegrationTest extends Arquillian {
                 null,
                 "seznam.cz");
         assertTrue(blacklistCacheService.dropTheWholeCache(), "Dropping the whole cache failed.");
-        assertTrue(blacklistCacheService.addToCache(ioCRecord), "Adding a new IoC to a presumably empty cache failed.");
+        assertTrue(blacklistCacheService.addToCache(ioCRecord, IoCAPI.IOC), "Adding a new IoC to a presumably empty cache failed.");
     }
 
     @Test(enabled = true, dataProvider = Arquillian.ARQUILLIAN_DATA_PROVIDER, priority = 4)
@@ -410,21 +412,27 @@ public class ApiIntegrationTest extends Arquillian {
                 new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX").format(Calendar.getInstance().getTime()));
         requestSettings.setRequestBody(ioc);
 
+        // At this point, accuracy is:
+        // "feed": 80
+        // "passivedns": 40
+
         Page page = webClient.getPage(requestSettings);
         assertEquals(HttpURLConnection.HTTP_OK, page.getWebResponse().getStatusCode());
 
         //Update accuracy
+        // accucheckerreport.json
         WebRequest requestSettingsAccu = new WebRequest(new URL(context + "rest/blacklist/accuracyupdate/"), HttpMethod.POST);
         requestSettingsAccu.setAdditionalHeader("Content-Type", "application/json");
         requestSettingsAccu.setAdditionalHeader("X-sinkit-token", TOKEN);
-
         String report = FileUtils.readFileIntoString("accucheckerreport.json");
         report = report.replace("TIMESTAMP",
                 new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX").format(Calendar.getInstance().getTime()));
         requestSettingsAccu.setRequestBody(report);
-
         Page pageAccuUpdate = webClient.getPage(requestSettingsAccu);
         assertEquals(HttpURLConnection.HTTP_OK, pageAccuUpdate.getWebResponse().getStatusCode());
+
+        // Got updated with addition of:
+        // "accufeed1": 80
 
         //Check Cache
         WebRequest requestSettingsCache = new WebRequest(new URL(context + "rest/blacklist/record/accuracy.phishing.ru"), HttpMethod.GET);
@@ -432,17 +440,53 @@ public class ApiIntegrationTest extends Arquillian {
         requestSettingsCache.setAdditionalHeader("X-sinkit-token", TOKEN);
         Page pageCache = webClient.getPage(requestSettingsCache);
         assertEquals(HttpURLConnection.HTTP_OK, pageCache.getWebResponse().getStatusCode());
-
         String responseBodyCache = pageCache.getWebResponse().getContentAsString();
         LOGGER.info("Cache Response:" + responseBodyCache);
         JsonParser jsonParser = new JsonParser();
         JsonObject accuracy = jsonParser.parse(responseBodyCache).getAsJsonObject()
                 .get("accuracy").getAsJsonObject()
                 .get("accucheckerTest").getAsJsonObject();
+
+        // Comes from original IoC:
         assertEquals(accuracy.get("feed").getAsInt(), 80);
         assertEquals(accuracy.get("passivedns").getAsInt(), 40);
-        assertEquals(accuracy.get("accufeed1").getAsInt(), 80);
 
+        // Comes from AccuChecker, note the ACCUCHECKER_PREFIX that was added automatically:
+        assertEquals(accuracy.get(BlacklistCacheServiceEJB.ACCUCHECKER_PREFIX + "accufeed1").getAsInt(), 80);
+
+        // accucheckerreport2.json
+        requestSettingsAccu = new WebRequest(new URL(context + "rest/blacklist/accuracyupdate/"), HttpMethod.POST);
+        requestSettingsAccu.setAdditionalHeader("Content-Type", "application/json");
+        requestSettingsAccu.setAdditionalHeader("X-sinkit-token", TOKEN);
+        report = FileUtils.readFileIntoString("accucheckerreport2.json");
+        report = report.replace("TIMESTAMP",
+                new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX").format(Calendar.getInstance().getTime()));
+        requestSettingsAccu.setRequestBody(report);
+        pageAccuUpdate = webClient.getPage(requestSettingsAccu);
+        assertEquals(HttpURLConnection.HTTP_OK, pageAccuUpdate.getWebResponse().getStatusCode());
+
+        // Updating with:
+        //    "accufeed1": 90,
+        //    "feed": 10
+
+        requestSettingsCache = new WebRequest(new URL(context + "rest/blacklist/record/accuracy.phishing.ru"), HttpMethod.GET);
+        requestSettingsCache.setAdditionalHeader("Content-Type", "application/json");
+        requestSettingsCache.setAdditionalHeader("X-sinkit-token", TOKEN);
+        pageCache = webClient.getPage(requestSettingsCache);
+        assertEquals(HttpURLConnection.HTTP_OK, pageCache.getWebResponse().getStatusCode());
+        responseBodyCache = pageCache.getWebResponse().getContentAsString();
+        LOGGER.info("Cache Response:" + responseBodyCache);
+        jsonParser = new JsonParser();
+        accuracy = jsonParser.parse(responseBodyCache).getAsJsonObject()
+                .get("accuracy").getAsJsonObject()
+                .get("accucheckerTest").getAsJsonObject();
+
+        // Comes from original IoC:
+        assertEquals(accuracy.get(BlacklistCacheServiceEJB.ACCUCHECKER_PREFIX + "feed").getAsInt(), 10);
+        assertEquals(accuracy.get("passivedns").getAsInt(), 40);
+
+        // Comes from AccuChecker, note the ACCUCHECKER_PREFIX that was added automatically:
+        assertEquals(accuracy.get(BlacklistCacheServiceEJB.ACCUCHECKER_PREFIX + "accufeed1").getAsInt(), 90);
     }
 
 
@@ -465,10 +509,15 @@ public class ApiIntegrationTest extends Arquillian {
         assertEquals(ioc.getSource().getId().getType(), IoCSourceIdType.FQDN, "Expected source.id.type: " + IoCSourceIdType.FQDN + ", but got: " + ioc.getSource().getId().getType());
         assertEquals(ioc.getSource().getId().getValue(), fqdn, "Expected source.id.value: " + fqdn + ", but got: " + ioc.getSource().getId().getValue());
         assertEquals(ioc.getClassification().getType(), type, "Expected classification.type: " + type + ", but got: " + ioc.getClassification().getType());
-        assertEquals(ioc.getAccuracy().get("feed"), new Integer(80));
-        assertEquals(ioc.getAccuracy().get("accufeed1"), new Integer(80));
+
+        // Note the accuracy of "feed" was updated to 10 from 80, despite the fact the field name is kept in Infinispan as:
+        //   "accuchecker.feed":10
+        assertEquals(ioc.getAccuracy().get("feed"), new Integer(10));
+
+        // Note that ACCUCHECKER_PREFIX does not appear in Elastic. It stays just in Infinispan.
+        assertEquals(ioc.getAccuracy().get("accufeed1"), new Integer(90));
         assertEquals(ioc.getAccuracy().get("passivedns"), new Integer(40));
-        assertEquals(ioc.getAccuracySum(), new Integer(80 + 40 + 80));
+        assertEquals(ioc.getAccuracySum(), new Integer(10 + 40 + 90));
         assertEquals(ioc.getMetadata().get("accufeed1").getContent(), "Some content");
         assertNotNull(ioc.getTime().getObservation(), "Expecting time.observation, but got null");
     }

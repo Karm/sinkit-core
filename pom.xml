@@ -93,6 +93,9 @@
         <junit.version>4.12</junit.version>
         <mockito.version>1.10.19</mockito.version>
 
+        <!-- Debugging e.g. -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=1661 -->
+        <jvm.args.debug></jvm.args.debug>
+
         <!-- Documentation, JavaDoc in Markdown -->
         <maven.javadoc.plugin.version>2.9</maven.javadoc.plugin.version>
         <pegdown.doclet.version>1.1</pegdown.doclet.version>
