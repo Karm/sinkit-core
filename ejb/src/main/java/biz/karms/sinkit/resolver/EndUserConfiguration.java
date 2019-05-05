@@ -12,6 +12,11 @@ import java.util.Set;
 public class EndUserConfiguration implements Serializable {
     private Integer clientId;
     private String userId;
+    /**
+     * While ipRanges for @{@link Policy} MUST NOT be empty and are enforced in @{@link biz.karms.sinkit.ejb.util.ResolverConfigurationValidator},
+     * ipRanges in {@link EndUserConfiguration} MAY be empty.
+     */
+    private Set<String> ipRanges;
 
     @SerializedName("policy")
     private Integer policyId;

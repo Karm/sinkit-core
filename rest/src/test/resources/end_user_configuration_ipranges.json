@@ -1,0 +1,23 @@
+{
+  "client_id": 270,
+  "user_id": "someuser",
+  "identities": [
+    "device567",
+    "user123",
+    "9865xyz"
+  ],
+  "policy": 123456,
+  "whitelist": [
+    "w1.example.com",
+    "w2.example.com"
+  ],
+  "blacklist": [
+    "domain.example.com",
+    "lalala.example.com"
+  ],
+  "ip_ranges": [
+    "10.10.0.0/16",
+    "10.20.30.0/8",
+    "2001:0db8:85a3:1234:5678:8a2e:0370:0/8"
+  ]
+}

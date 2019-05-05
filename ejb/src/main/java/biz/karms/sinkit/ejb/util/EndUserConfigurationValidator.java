@@ -33,5 +33,7 @@ public class EndUserConfigurationValidator {
         }
     }
 
+    //ipRanges -- no constraint on ipRanges so far, MAY be empty, MAY be gibberish
+
 
 }

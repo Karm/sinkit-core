@@ -6,6 +6,7 @@ import org.infinispan.protostream.MessageMarshaller;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
 
@@ -29,6 +30,7 @@ public class EndUserConfigurationMessageMarshaller implements MessageMarshaller<
         final Set<String> identities = reader.readCollection("identities", new HashSet<>(), String.class);
         final Set<String> whitelist = reader.readCollection("whitelist", new HashSet<>(), String.class);
         final Set<String> blacklist = reader.readCollection("blacklist", new HashSet<>(), String.class);
+        final Set<String> ipRanges = reader.readCollection("ipRanges", new LinkedHashSet<>(), String.class);
 
         final EndUserConfiguration configuration = new EndUserConfiguration();
         configuration.setClientId(clientId);
@@ -37,6 +39,7 @@ public class EndUserConfigurationMessageMarshaller implements MessageMarshaller<
         configuration.setIdentities(identities);
         configuration.setWhitelist(whitelist);
         configuration.setBlacklist(blacklist);
+        configuration.setIpRanges(ipRanges);
         return configuration;
     }
 
@@ -48,6 +51,7 @@ public class EndUserConfigurationMessageMarshaller implements MessageMarshaller<
         writer.writeCollection("identities", Optional.ofNullable(endUserConfiguration.getIdentities()).orElse(new HashSet<>()), String.class);
         writer.writeCollection("whitelist", Optional.ofNullable(endUserConfiguration.getWhitelist()).orElse(new HashSet<>()), String.class);
         writer.writeCollection("blacklist", Optional.ofNullable(endUserConfiguration.getBlacklist()).orElse(new HashSet<>()), String.class);
+        writer.writeCollection("ipRanges", Optional.ofNullable(endUserConfiguration.getIpRanges()).orElse(new LinkedHashSet<>()), String.class);
     }
 
 }

@@ -62,7 +62,6 @@ public class ResolverConfigurationValidator {
             throw new ResolverConfigurationValidationException(
                     format("'Resolver configuration.policy.id' must be unique. The following ids are duplicated '%s'", duplicities));
         }
-        System.out.println();
     }
 
     void maxOneIpRangesIsEmpty(ResolverConfiguration resolverConfiguration) throws ResolverConfigurationValidationException {

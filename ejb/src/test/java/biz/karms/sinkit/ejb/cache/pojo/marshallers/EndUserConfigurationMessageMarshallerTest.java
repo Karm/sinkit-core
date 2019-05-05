@@ -1,6 +1,7 @@
 package biz.karms.sinkit.ejb.cache.pojo.marshallers;
 
 import biz.karms.sinkit.resolver.EndUserConfiguration;
+import org.hamcrest.Matchers;
 import org.infinispan.protostream.MessageMarshaller;
 import org.junit.Before;
 import org.junit.Test;
@@ -9,9 +10,11 @@ import org.mockito.MockitoAnnotations;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -66,6 +69,9 @@ public class EndUserConfigurationMessageMarshallerTest {
         final Set<String> blacklist = Collections.singleton("blacklist.org");
         doReturn(blacklist).when(reader).readCollection(eq("blacklist"), argThat(instanceOf(HashSet.class)), eq(String.class));
 
+        doReturn(new HashSet<>(Collections.singletonList("10.20.30.40/8"))).when(reader).readCollection(eq("ipRanges"), argThat(Matchers.instanceOf(
+                LinkedHashSet.class)), eq(String.class));
+
         // calling tested method
         final EndUserConfiguration configuration = marshaller.readFrom(reader);
 
@@ -78,16 +84,21 @@ public class EndUserConfigurationMessageMarshallerTest {
         assertThat(configuration.getIdentities(), is(identities));
         assertThat(configuration.getWhitelist(), is(whitelist));
         assertThat(configuration.getBlacklist(), is(blacklist));
+        assertThat(configuration.getIpRanges(), hasItems("10.20.30.40/8"));
     }
 
     @Test
     public void writeTo() throws Exception {
+
+        final Set<String> ipRanges = new HashSet<>(Collections.singletonList("10.20.30.40/8"));
+
 
         // preparation
         final EndUserConfiguration configuration = new EndUserConfiguration();
         configuration.setUserId("user123");
         configuration.setClientId(33);
         configuration.setPolicyId(4);
+        configuration.setIpRanges(ipRanges);
 
         final Set<String> blacklist = Collections.singleton("blacklist.org");
         configuration.setBlacklist(blacklist);
@@ -108,10 +119,11 @@ public class EndUserConfigurationMessageMarshallerTest {
         verify(writer).writeCollection("identities", identities, String.class);
         verify(writer).writeCollection("whitelist", whitelist, String.class);
         verify(writer).writeCollection("blacklist", blacklist, String.class);
-
+        verify(writer).writeCollection("ipRanges", ipRanges, String.class);
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void writeToParamsNull() throws Exception {
         // preparation
         final EndUserConfiguration configuration = new EndUserConfiguration();
@@ -123,7 +135,7 @@ public class EndUserConfigurationMessageMarshallerTest {
         verify(writer).writeCollection(eq("identities"), (Set<String>) argThat(empty()), eq(String.class));
         verify(writer).writeCollection(eq("whitelist"), (Set<String>) argThat(empty()), eq(String.class));
         verify(writer).writeCollection(eq("blacklist"), (Set<String>) argThat(empty()), eq(String.class));
-
+        verify(writer).writeCollection(eq("ipRanges"), argThat(instanceOf(LinkedHashSet.class)), eq(String.class));
     }
 
 }
