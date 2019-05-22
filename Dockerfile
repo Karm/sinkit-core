@@ -36,6 +36,7 @@ RUN echo 'JAVA_OPTS="\
  -XX:MaxGCPauseMillis=100 \
  -XX:InitiatingHeapOccupancyPercent=70 \
  -XX:+HeapDumpOnOutOfMemoryError \
+ -XX:+ExitOnOutOfMemoryError \
  -XX:HeapDumpPath=/opt/sinkit \
 "' >> /opt/sinkit/wildfly/bin/standalone.conf
 RUN mkdir -p /opt/sinkit/wildfly/standalone/log/ && mkdir -p /opt/sinkit/certs && mkdir -p /opt/sinkit/protobuf && \
